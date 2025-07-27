@@ -1,19 +1,359 @@
-<html>
-<script src='https://d3js.org/d3.v5.min.js'></script>
-<style> circle, rect {fill: none; stroke: black;} </style>
+<html lang="en">
+<head>
+  <title>Boston Marathon Winners</title>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-annotation/2.5.1/d3-annotation.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+    }
+    .controls {
+      margin: 20px;
+    }
+    .legend {
+      font-size: 12px;
+    }
+    .legend rect {
+      stroke: #000;
+      stroke-width: 0.5;
+      cursor: pointer;
+    }
+    .textbox {
+      margin-left: 20px;
+      width: 200px;
+      font-size: 14px;
+      background: #f9f9f9;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: fit-content;
+    }
+	.tooltip {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0;
+      background-color: gray;
+      border: solid 1px #ccc;
+      border-radius: 5px;
+      padding: 5px;
+      color: white;
+      font-size: 12px;
+    }
+  </style>
+</head>
 <body>
-<svg width=100 height=100>
-<g id='first'>
-  <circle cx=30 cy=30 r=10></circle>
-  <rect x=60 y=20 width=20 height=20></rect>
-</g>
-<g id='second'>
-  <circle cx=30 cy=70 r=10></circle>
-  <rect x=60 y=60 width=20 height=20></rect>
-</g>
-</svg>
+
+<div>
+  <div class="controls">
+    <h2>Boston Marathon Winners (1966–2022)</h2>
+    <label for="highlightSelect">Options to explore (Choose other options for further data and insights):</label>
+    <select id="highlightSelect">
+      <option value="none">Original</option>
+      <option value="country">Highlight Countries</option>
+      <option value="prepost">Pre 1985</option>
+    </select>
+	<label><br>You can hover over the dots on the graph for further information on each of the Winners</label>
+  </div>
+  <svg width="900" height="600"></svg>
+</div>
+
+<div id="infoBox" class="textbox">
+  <strong>Notes:</strong>
+  <p id="infoText">
+    The current view shows the Men and Women Winners information from 1966-2022 and you can see the trend over time. You can hover over the dots to get more information on the winner and select different options to explore to get additional insights on the data.
+  </p>
+</div>
+
 <script>
-// Enter your D3 selection statement here.
+//ingest data
+const menCSV = `Year,Winner,Country,Time,Distance (Miles),Distance (KM)
+1966,Kenji Kimihara,Japan,02:17:11,26.2,42.2
+1967,Dave McKenzie,New Zealand,02:15:45,26.2,42.2
+1968,Amby Burfoot,United States,02:22:17,26.2,42.2
+1969,Yoshiaki Unetani,Japan,02:13:49,26.2,42.2
+1970,Ron Hill,United Kingdom,02:10:30,26.2,42.2
+1971,Álvaro Mejía,Colombia,02:18:45,26.2,42.2
+1972,Olavi Suomalainen,Finland,02:15:39,26.2,42.2
+1973,Jon Anderson,United States,02:16:03,26.2,42.2
+1974,Neil Cusack,Ireland,02:13:39,26.2,42.2
+1975,Bill Rodgers,United States,02:09:55,26.2,42.2
+1976,Jack Fultz,United States,02:20:19,26.2,42.2
+1977,Jerome Drayton,Canada,02:14:46,26.2,42.2
+1978,Bill Rodgers,United States,02:10:13,26.2,42.2
+1979,Bill Rodgers,United States,02:09:27,26.2,42.2
+1980,Bill Rodgers,United States,02:12:11,26.2,42.2
+1981,Toshihiko Seko,Japan,02:09:26,26.2,42.2
+1982,Alberto Salazar,United States,02:08:52,26.2,42.2
+1983,Greg Meyer,United States,02:09:00,26.2,42.2
+1984,Geoff Smith,United Kingdom,02:10:34,26.2,42.2
+1985,Geoff Smith,United Kingdom,02:14:05,26.2,42.2
+1986,Robert de Castella,Australia,02:07:51,26.2,42.2
+1987,Toshihiko Seko,Japan,02:11:50,26.2,42.2
+1988,Ibrahim Hussein,Kenya,02:08:43,26.2,42.2
+1989,Abebe Mekonnen,Ethiopia,02:09:06,26.2,42.2
+1990,Gelindo Bordin,Italy,02:08:19,26.2,42.2
+1991,Ibrahim Hussein,Kenya,02:11:06,26.2,42.2
+1992,Ibrahim Hussein,Kenya,02:08:14,26.2,42.2
+1993,Cosmas Ndeti,Kenya,02:09:33,26.2,42.2
+1994,Cosmas Ndeti,Kenya,02:07:15,26.2,42.2
+1995,Cosmas Ndeti,Kenya,02:09:22,26.2,42.2
+1996,Moses Tanui,Kenya,02:09:15,26.2,42.2
+1997,Lameck Aguta,Kenya,02:10:34,26.2,42.2
+1998,Moses Tanui,Kenya,02:07:34,26.2,42.2
+1999,Joseph Chebet,Kenya,02:09:52,26.2,42.2
+2000,Elijah Lagat,Kenya,02:09:47,26.2,42.2
+2001,Lee Bong-ju,South Korea,02:09:43,26.2,42.2
+2002,Rodgers Rop,Kenya,02:09:02,26.2,42.2
+2003,Robert Kipkoech Cheruiyot,Kenya,02:10:11,26.2,42.2
+2004,Timothy Cherigat,Kenya,02:10:37,26.2,42.2
+2005,Hailu Negussie,Ethiopia,02:11:44,26.2,42.2
+2006,Robert Kipkoech Cheruiyot,Kenya,02:07:14,26.2,42.2
+2007,Robert Kipkoech Cheruiyot,Kenya,02:14:13,26.2,42.2
+2008,Robert Kipkoech Cheruiyot,Kenya,02:07:45,26.2,42.2
+2009,Deriba Merga,Ethiopia,02:08:42,26.2,42.2
+2010,Robert Kiprono Cheruiyot,Kenya,02:05:52,26.2,42.2
+2011,Geoffrey Mutai,Kenya,02:03:02,26.2,42.2
+2012,Wesley Korir,Kenya,02:12:40,26.2,42.2
+2013,Lelisa Desisa,Ethiopia,02:10:22,26.2,42.2
+2014,Meb Keflezighi,United States,02:08:37,26.2,42.2
+2015,Lelisa Desisa,Ethiopia,02:09:17,26.2,42.2
+2016,Lemi Berhanu Hayle,Ethiopia,02:12:45,26.2,42.2
+2017,Geoffrey Kirui,Kenya,02:09:37,26.2,42.2
+2018,Yuki Kawauchi,Japan,02:15:58,26.2,42.2
+2019,Lawrence Cherono,Kenya,02:07:57,26.2,42.2
+2021,Benson Kipruto,Kenya,02:09:51,26.2,42.2
+2022,Evans Chebet,Kenya,02:06:51,26.2,42.2`;
+
+const womenCSV = `Year,Winner,Country,Time,Distance (Miles),Distance (KM)
+1966,Bobbi Gibb,United States,3:21:40,26.2,42.2
+1967,Bobbi Gibb,United States,3:27:17,26.2,42.2
+1968,Bobbi Gibb,United States,3:30:00,26.2,42.2
+1969,Sara Mae Berman,United States,3:22:46,26.2,42.2
+1970,Sara Mae Berman,United States,3:05:07,26.2,42.2
+1971,Sara Mae Berman,United States,3:08:30,26.2,42.2
+1972,Nina Kuscsik,United States,3:10:26,26.2,42.2
+1973,Jacqueline Hansen,United States,3:05:59,26.2,42.2
+1974,Miki Gorman,United States,2:47:11,26.2,42.2
+1975,Liane Winter,Germany,2:42:24,26.2,42.2
+1976,Kim Merritt,United States,2:47:10,26.2,42.2
+1977,Miki Gorman,United States,2:48:33,26.2,42.2
+1978,Gayle Barron,United States,2:44:52,26.2,42.2
+1979,Joan Benoit,United States,2:35:15,26.2,42.2
+1980,Jacqueline Gareau,Canada,2:34:28,26.2,42.2
+1981,Allison Roe,New Zealand,2:26:46,26.2,42.2
+1982,Charlotte Teske,Germany,2:29:33,26.2,42.2
+1983,Joan Benoit,United States,2:22:43,26.2,42.2
+1984,Lorraine Moller,New Zealand,2:29:28,26.2,42.2
+1985,Lisa Larsen Weidenbach,United States,2:34:06,26.2,42.2
+1986,Ingrid Kristiansen,Norway,2:24:55,26.2,42.2
+1987,Rosa Mota,Portugal,2:25:21,26.2,42.2
+1988,Rosa Mota,Portugal,2:24:30,26.2,42.2
+1989,Ingrid Kristiansen,Norway,2:24:33,26.2,42.2
+1990,Rosa Mota,Portugal,2:25:24,26.2,42.2
+1991,Wanda Panfil,Poland,2:24:18,26.2,42.2
+1992,Olga Markova,Russia,2:23:43,26.2,42.2
+1993,Olga Markova,Russia,2:25:27,26.2,42.2
+1994,Uta Pippig,Germany,2:21:45,26.2,42.2
+1995,Uta Pippig,Germany,2:25:11,26.2,42.2
+1996,Uta Pippig,Germany,2:27:12,26.2,42.2
+1997,Fatuma Roba,Ethiopia,2:26:23,26.2,42.2
+1998,Fatuma Roba,Ethiopia,2:23:21,26.2,42.2
+1999,Fatuma Roba,Ethiopia,2:23:25,26.2,42.2
+2000,Catherine Ndereba,Kenya,2:26:11,26.2,42.2
+2001,Catherine Ndereba,Kenya,2:23:53,26.2,42.2
+2002,Margaret Okayo,Kenya,2:20:43,26.2,42.2
+2003,Svetlana Zakharova,Russia,2:25:19,26.2,42.2
+2004,Catherine Ndereba,Kenya,2:24:27,26.2,42.2
+2005,Catherine Ndereba,Kenya,2:25:12,26.2,42.2
+2006,Rita Jeptoo,Kenya,2:23:38,26.2,42.2
+2007,Lidiya Grigoryeva,Russia,2:29:18,26.2,42.2
+2008,Dire Tune,Ethiopia,2:25:25,26.2,42.2
+2009,Salina Kosgei,Kenya,2:32:16,26.2,42.2
+2010,Teyba Erkesso,Ethiopia,2:26:11,26.2,42.2
+2011,Caroline Kilel,Kenya,2:22:36,26.2,42.2
+2012,Sharon Cherop,Kenya,2:31:50,26.2,42.2
+2013,Rita Jeptoo,Kenya,2:26:25,26.2,42.2
+2014,Buzunesh Deba,Ethiopia,2:19:59,26.2,42.2
+2015,Caroline Rotich,Kenya,2:24:55,26.2,42.2
+2016,Atsede Baysa,Ethiopia,2:29:19,26.2,42.2
+2017,Edna Kiplagat,Kenya,2:21:52,26.2,42.2
+2018,Desiree Linden,United States,2:39:54,26.2,42.2
+2019,Worknesh Degefa,Ethiopia,2:23:31,26.2,42.2
+2021,Edna Kiplagat,Kenya,2:25:09,26.2,42.2
+2022,Peres Jepchirchir,Kenya,2:21:02,26.2,42.2`;
+
+//read data
+const menData = d3.csvParse(menCSV);
+const womenData = d3.csvParse(womenCSV);
+
+//change time to minutes
+function timeToMinutes(t) {
+  const [h, m, s] = t.split(":").map(Number);
+  return h * 60 + m + s / 60;
+}
+
+menData.forEach(d => {
+  d.Year = +d.Year;
+  d.TimeMinutes = timeToMinutes(d.Time);
+});
+womenData.forEach(d => {
+  d.Year = +d.Year;
+  d.TimeMinutes = timeToMinutes(d.Time);
+});
+
+const svg = d3.select("svg");
+const margin = { top: 40, right: 180, bottom: 50, left: 80 };
+const width = +svg.attr("width") - margin.left - margin.right;
+const height = +svg.attr("height") - margin.top - margin.bottom;
+const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+const x = d3.scaleLinear().domain([1966, 2022]).range([0, width]);
+const y = d3.scaleLinear().domain([
+  d3.min([...menData, ...womenData], d => d.TimeMinutes) - 5,
+  d3.max([...menData, ...womenData], d => d.TimeMinutes) + 5
+]).range([height, 0]);
+
+const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+let activeCountry = null;
+
+g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).tickFormat(d3.format("d")));
+g.append("g").call(d3.axisLeft(y));
+g.append("text").attr("x", width / 2).attr("y", height + 40).attr("text-anchor", "middle").text("Year");
+g.append("text").attr("x", -height / 2).attr("y", -50).attr("transform", "rotate(-90)").attr("text-anchor", "middle").text("Time (minutes)");
+
+const line = d3.line().x(d => x(d.Year)).y(d => y(d.TimeMinutes));
+g.append("path").datum(menData).attr("class", "men-line").attr("fill", "none").attr("stroke", "steelblue").attr("stroke-width", 2).attr("d", line);
+g.append("path").datum(womenData).attr("class", "women-line").attr("fill", "none").attr("stroke", "crimson").attr("stroke-width", 2).attr("d", line);
+
+  // create a tooltip
+var Tooltip = d3.select("body")
+  .append("div")
+  .attr("class", "tooltip");
+
+  // Three function that change the tooltip when user hover / move / leave a cell
+  var mouseover = function(d) {
+    Tooltip
+      .style("opacity", 1)
+    d3.select(this)
+      .style("stroke", "black")
+      .style("opacity", 1)
+  }
+  var mousemove = function(d) {
+    Tooltip
+      .html("Year: " + d.Year + "<br>Winner: " + d.Winner + "<br>Country: " + d.Country + "<br>Time: " + d.Time)
+      .style("left", (d3.mouse(this)[0]) + "px")
+      .style("top", (d3.mouse(this)[1]) + "px")
+  }
+  var mouseleave = function(d) {
+    Tooltip
+      .style("opacity", 0)
+    d3.select(this)
+      .style("stroke", "none")
+      .style("opacity", 0.8)
+  }
+
+
+const menDots = g.selectAll(".men-dot")
+  .data(menData)
+  .enter().append("circle")
+  .attr("class", "men-dot")
+  .attr("r", 5)
+  .attr("cx", d => x(d.Year))
+  .attr("cy", d => y(d.TimeMinutes))
+  .attr("fill", "steelblue")
+  .on("mouseover", mouseover)
+    .on("mousemove", mousemove)
+    .on("mouseleave", mouseleave);
+
+const womenDots = g.selectAll(".women-dot")
+  .data(womenData)
+  .enter().append("circle")
+  .attr("class", "women-dot")
+  .attr("r", 5)
+  .attr("cx", d => x(d.Year))
+  .attr("cy", d => y(d.TimeMinutes))
+  .attr("fill", "crimson")
+  .on("mouseover", mouseover)
+    .on("mousemove", mousemove)
+    .on("mouseleave", mouseleave);
+  
+
+// Gender legend
+const genderLegend = svg.append("g")
+  .attr("class", "legend")
+  .attr("transform", `translate(${width + margin.left + 10},${margin.top})`);
+
+[["Men", "steelblue"], ["Women", "crimson"]].forEach(([label, color], i) => {
+  const row = genderLegend.append("g").attr("transform", `translate(0,${i * 20})`);
+  row.append("rect").attr("width", 12).attr("height", 12).attr("fill", color);
+  row.append("text").attr("x", 18).attr("y", 10).text(label);
+});
+
+// Country legend
+const countryLegend = svg.append("g")
+  .attr("class", "legend")
+  .attr("id", "countryLegend")
+  .attr("transform", `translate(${width + margin.left + 10},${margin.top + 50})`)
+  .style("display", "none");
+
+function updateCountryLegend() {
+  const countries = Array.from(new Set([...menData, ...womenData].map(d => d.Country)));
+  const groups = countryLegend.selectAll("g").data(countries, d => d);
+
+  const enter = groups.enter().append("g")
+    .attr("transform", (d, i) => `translate(0, ${i * 20})`)
+    .style("cursor", "pointer");
+
+  enter.append("rect")
+    .attr("width", 12)
+    .attr("height", 12)
+    .attr("fill", d => colorScale(d));
+
+  enter.append("text")
+    .attr("x", 18)
+    .attr("y", 10)
+    .text(d => d);
+}
+
+// Pre-1985 rectangle
+const highlightBox = g.append("rect")
+  .attr("y", 0)
+  .attr("x", x(1966))
+  .attr("height", height)
+  .attr("width", x(1985) - x(1966))
+  .attr("fill", "red")
+  .attr("opacity", 0.1)
+  .style("display", "none");
+  
+
+// Dropdown menu options
+d3.select("#highlightSelect").on("change", function () {
+  const value = this.value;
+  activeCountry = null;
+
+  if (value === "none") {
+    menDots.attr("fill", "steelblue").attr("opacity", 1);
+    womenDots.attr("fill", "crimson").attr("opacity", 1);
+    countryLegend.style("display", "none");
+    highlightBox.style("display", "none");
+    d3.select("#infoText").text("The current view shows the Men and Women Winners information from 1966-2022 and you can see the trend over time. You can hover over the dots to get more information on the winner and select different options to explore to get additional insights on the data.");
+  } else if (value === "country") {
+    menDots.attr("fill", d => colorScale(d.Country)).attr("opacity", 1);
+    womenDots.attr("fill", d => colorScale(d.Country)).attr("opacity", 1);
+    countryLegend.style("display", "block");
+    updateCountryLegend();
+    highlightBox.style("display", "none");
+    d3.select("#infoText").text("This view shows the Winner's country. You can see that starting in the 90s for men and 2000s for women a shift to Kenya and Ethiopian Winners. This could be due to many factors such as genetics and culture");
+  } else if (value === "prepost") {
+    highlightBox.style("display", "block");
+    countryLegend.style("display", "none");
+    menDots.attr("fill", "steelblue").attr("opacity", 1);
+    womenDots.attr("fill", "crimson").attr("opacity", 1);
+    d3.select("#infoText").text("Prior to 1985 you can see that the gap between Men and Women was great and there was also a larger variance and increase in speed. Some factors that influenced these changes are improvements in technology, higher compeitition with higher pay and improvements in training");
+  }
+});
+
 </script>
+
 </body>
 </html>
